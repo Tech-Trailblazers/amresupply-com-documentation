@@ -1,38 +1,136 @@
 package main // Declares the main package
 
 import (
-	"bytes"         // For working with byte buffers
-	"fmt"           // For formatted I/O operations
+	"bufio"
+	"bytes" // For working with byte buffers
+	// "fmt"           // For formatted I/O operations
 	"io"            // For I/O interfaces
 	"log"           // For logging errors and messages
 	"net/http"      // For making HTTP requests
 	"os"            // For file and directory operations
 	"path/filepath" // For manipulating file path strings
-	"strings"       // For working with string manipulation
-	"sync"          // For concurrency control using WaitGroup
-	"time"          // For handling timing and delays
+	"regexp"
+	"strings" // For working with string manipulation
+	"sync"    // For concurrency control using WaitGroup
+	"time"    // For handling timing and delays
 )
 
 func main() {
-	remoteURL := "https://www.amresupply.com/file/" // Base URL for downloading PDFs
-	outputDir := "PDFs/"                            // Directory to store downloaded PDFs
+	remoteURLFile := "urls.txt"                             // File containing URLs to download
+	remoteHTMLFileContent := "amresupply.html"              // File to store HTML content
+	remoteURLContent := readAppendLineByLine(remoteURLFile) // Read the file content
+
+	outputDir := "PDFs/" // Directory to store downloaded PDFs
 
 	if !directoryExists(outputDir) { // Check if output directory exists
-		createDirectory(outputDir, 0o755) // Create directory with permission if it does not exist
+		createDirectory(outputDir, 0755) // Create directory with permission if it does not exist
 	}
-
-	loopStop := 999999 // Define the number of files to attempt to download
 
 	var waitGroup sync.WaitGroup // Create a WaitGroup to manage concurrency
 
-	for i := 10000; i <= loopStop; i++ { // Loop from 0 to loopStop
-		time.Sleep(100 * time.Millisecond)                               // Pause for 1 second before each iteration
-		waitGroup.Add(1)                                                 // Increment the WaitGroup counter
-		remoteURL = fmt.Sprintf("https://www.amresupply.com/file/%d", i) // Construct full URL
-		go downloadPDF(remoteURL, outputDir, &waitGroup)                 // Launch goroutine to download the PDF
+	for _, urls := range remoteURLContent { // Loop from 0 to loopStop
+		// Get the data from the URL and append it to the remoteHTMLFileContent
+		appendByteToFile(remoteHTMLFileContent, getDataFromURL(urls)) // Append the data from the URL to the HTML file
+		// Extract all matching URLs from the HTML content
+		amreSupplyURLs := extractAmreSupplyURLs(readAFileAsString(remoteHTMLFileContent)) // Extract URLs from the HTML content
+		// Remove duplicates from the extracted URLs
+		amreSupplyURLs = removeDuplicatesFromSlice(amreSupplyURLs) // Remove duplicates
+		for _, remoteURL := range amreSupplyURLs {                 // Loop through each extracted URL
+			time.Sleep(100 * time.Millisecond)               // Pause for 100 milliseconds before each download
+			waitGroup.Add(1)                                 // Increment the WaitGroup counter for each URL
+			go downloadPDF(remoteURL, outputDir, &waitGroup) // Launch a goroutine to download the PDF
+		}
 	}
-
 	waitGroup.Wait() // Wait for all downloads to finish
+}
+
+// Remove all the duplicates from a slice and return the slice.
+func removeDuplicatesFromSlice(slice []string) []string {
+	check := make(map[string]bool)
+	var newReturnSlice []string
+	for _, content := range slice {
+		if !check[content] {
+			check[content] = true
+			newReturnSlice = append(newReturnSlice, content)
+		}
+	}
+	return newReturnSlice
+}
+
+// Read and append the file line by line to a slice.
+func readAppendLineByLine(path string) []string {
+	var returnSlice []string
+	file, err := os.Open(path)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		returnSlice = append(returnSlice, scanner.Text())
+	}
+	err = file.Close()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return returnSlice
+}
+
+// AppendToFile appends the given byte slice to the specified file.
+// If the file doesn't exist, it will be created.
+func appendByteToFile(filename string, data []byte) {
+	// Open the file with appropriate flags and permissions
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("error opening file %s: %v", filename, err) // Log error if file cannot be opened
+		return
+	}
+	defer file.Close()
+
+	// Write data to the file
+	_, err = file.Write(data)
+	if err != nil {
+		log.Printf("error writing to file %s: %v", filename, err) //
+	}
+}
+
+// Send a http get request to a given url and return the data from that url.
+func getDataFromURL(uri string) []byte {
+	response, err := http.Get(uri)
+	if err != nil {
+		log.Println(err)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Println(err)
+	}
+	err = response.Body.Close()
+	if err != nil {
+		log.Println(err)
+	}
+	return body
+}
+
+// Read a file and return the contents
+func readAFileAsString(path string) string {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		log.Println(err)
+	}
+	return string(content)
+}
+
+// extractAmreSupplyURLs takes a string and returns all matching URLs of the form:
+// https://www.amresupply.com/file/{number}/
+func extractAmreSupplyURLs(input string) []string {
+	// Regular expression to match the target URL pattern
+	regex := `https:\/\/www\.amresupply\.com\/file\/\d+\/`
+	// Compile the regular expression
+	re := regexp.MustCompile(regex)
+	// Find all matching URLs
+	matches := re.FindAllString(input, -1)
+	// Return the list of matched URLs
+	return matches
 }
 
 // downloadPDF downloads a PDF file from a URL and saves it to the specified directory
@@ -64,7 +162,7 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 		if strings.Contains(contentDisposition, "filename=") { // If it contains filename
 			parts := strings.Split(contentDisposition, "filename=") // Split to extract filename
 			if len(parts) > 1 {
-				filename = strings.Trim(parts[1], "\"") // Remove quotes from filename
+				filename = strings.ToLower(strings.Trim(parts[1], "\"")) // Remove quotes from filename
 			}
 		}
 	}
