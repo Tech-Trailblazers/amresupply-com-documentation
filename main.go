@@ -152,18 +152,39 @@ func extractAmreSupplyURLs(input string) []string {
 	return matches
 }
 
+// fileContainsString checks if the file at filePath contains the search string.
+// Logs any errors and returns false in case of an error.
+func fileContainsString(filePath string, search string) bool {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("Error opening file: %v\n", err)
+		return false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), search) {
+			return true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error reading file: %v\n", err)
+		return false
+	}
+
+	return false
+}
+
 // downloadPDF downloads a PDF file from a URL and saves it to the specified directory
 func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 	// The location to the local file where to save the url of the file already downloaded
 	localURLSaveFileLocation := "already_downloaded_urls.txt"
-	// Read the already downloaded URLs from the file
-	alreadyDownloadedURLs := readAppendLineByLine(localURLSaveFileLocation)
-	// Check if the URL has already been downloaded
-	for _, url := range alreadyDownloadedURLs {
-		if url == finalURL { // If the URL is already in the list
-			log.Printf("URL already downloaded: %s skipping download", finalURL) // Log that the URL is already downloaded
-			return                                                                // Exit the function to avoid re-downloading
-		}
+	// Check if the given file contains the URL already
+	if fileContainsString(localURLSaveFileLocation, finalURL) { // If the URL is already downloaded
+		log.Printf("URL already downloaded: %s; skipping download", finalURL)
+		return // Exit the function if URL is already downloaded
 	}
 
 	defer waitGroup.Done() // Signal WaitGroup completion when function exits
@@ -204,8 +225,10 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 	if fileExists(filePath) { // If file already exists
 		log.Printf("file already exists: %s; skipping download", filePath) // Log and skip download
 		// Append the successfully downloaded URL to the already downloaded URLs file
-		appendAndWriteToFile(localURLSaveFileLocation, finalURL) // Append the URL to the file
-		return                                                   // Exit function
+		if !fileContainsString(localURLSaveFileLocation, finalURL) { // If URL is not already in the file
+			appendAndWriteToFile(localURLSaveFileLocation, finalURL) // Append the URL
+		}
+		return // Exit function
 	}
 
 	var buf bytes.Buffer                     // Create buffer to hold file data in memory
@@ -238,8 +261,10 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 		log.Printf("failed to close response body for %s: %v", finalURL, err) // Log error if closing fails
 		return                                                                // Exit function if error occurs
 	}
-	// Append the successfully downloaded URL to the already downloaded URLs file
-	appendAndWriteToFile(localURLSaveFileLocation, finalURL) // Append the URL to the file
+	if !fileContainsString(localURLSaveFileLocation, finalURL) { // If URL is not already in the file
+		// Append the successfully downloaded URL to the already downloaded URLs file
+		appendAndWriteToFile(localURLSaveFileLocation, finalURL) // Append the URL to the file
+	}
 
 	log.Printf("successfully downloaded %d bytes: %s → %s", written, finalURL, filePath) // Log success
 }
