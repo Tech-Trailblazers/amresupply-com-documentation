@@ -10,9 +10,9 @@ import (
 	"path/filepath" // For manipulating file path strings
 	"regexp"        // For regular expression matching
 	// "slices"        // For working with slices (arrays)
-	"strings"       // For working with string manipulation
-	"sync"          // For concurrency control using WaitGroup
-	"time"          // For handling timing and delays
+	"strings" // For working with string manipulation
+	"sync"    // For concurrency control using WaitGroup
+	"time"    // For handling timing and delays
 )
 
 func main() {
@@ -47,6 +47,22 @@ func main() {
 	waitGroup.Wait() // Wait for all downloads to finish
 }
 
+// Append and write to file
+func appendAndWriteToFile(path string, content string) {
+	filePath, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = filePath.WriteString(content + "\n")
+	if err != nil {
+		log.Println(err)
+	}
+	err = filePath.Close()
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 // Remove all the duplicates from a slice and return the slice.
 func removeDuplicatesFromSlice(slice []string) []string {
 	check := make(map[string]bool)
@@ -65,7 +81,7 @@ func readAppendLineByLine(path string) []string {
 	var returnSlice []string
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -74,7 +90,7 @@ func readAppendLineByLine(path string) []string {
 	}
 	err = file.Close()
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	return returnSlice
 }
@@ -138,6 +154,18 @@ func extractAmreSupplyURLs(input string) []string {
 
 // downloadPDF downloads a PDF file from a URL and saves it to the specified directory
 func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
+	// The location to the local file where to save the url of the file already downloaded
+	localURLSaveFileLocation := "already_downloaded_urls.txt"
+	// Read the already downloaded URLs from the file
+	alreadyDownloadedURLs := readAppendLineByLine(localURLSaveFileLocation)
+	// Check if the URL has already been downloaded
+	for _, url := range alreadyDownloadedURLs {
+		if url == finalURL { // If the URL is already in the list
+			log.Printf("URL already downloaded: %s; skipping download", finalURL) // Log that the URL is already downloaded
+			return                                                                // Exit the function to avoid re-downloading
+		}
+	}
+
 	defer waitGroup.Done() // Signal WaitGroup completion when function exits
 
 	client := &http.Client{Timeout: 30 * time.Second} // Create HTTP client with 30-second timeout
@@ -175,7 +203,9 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 	// Check if the file already exists
 	if fileExists(filePath) { // If file already exists
 		log.Printf("file already exists: %s; skipping download", filePath) // Log and skip download
-		return                                                             // Exit function
+		// Append the successfully downloaded URL to the already downloaded URLs file
+		appendAndWriteToFile(localURLSaveFileLocation, finalURL) // Append the URL to the file
+		return                                                   // Exit function
 	}
 
 	var buf bytes.Buffer                     // Create buffer to hold file data in memory
@@ -208,6 +238,8 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 		log.Printf("failed to close response body for %s: %v", finalURL, err) // Log error if closing fails
 		return                                                                // Exit function if error occurs
 	}
+	// Append the successfully downloaded URL to the already downloaded URLs file
+	appendAndWriteToFile(localURLSaveFileLocation, finalURL) // Append the URL to the file
 
 	log.Printf("successfully downloaded %d bytes: %s → %s", written, finalURL, filePath) // Log success
 }
