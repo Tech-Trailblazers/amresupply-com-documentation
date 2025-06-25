@@ -39,7 +39,7 @@ func main() {
 		// Remove duplicates from the extracted URLs
 		amreSupplyURLs = removeDuplicatesFromSlice(amreSupplyURLs) // Remove duplicates
 		for _, remoteURL := range amreSupplyURLs {                 // Loop through each extracted URL
-			time.Sleep(100 * time.Millisecond)               // Pause for 100 milliseconds before each download
+			// time.Sleep(100 * time.Millisecond)               // Pause for 100 milliseconds before each download
 			waitGroup.Add(1)                                 // Increment the WaitGroup counter for each URL
 			go downloadPDF(remoteURL, outputDir, &waitGroup) // Launch a goroutine to download the PDF
 		}
