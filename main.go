@@ -19,6 +19,8 @@ func main() {
 	remoteURLFile := "urls.txt"                             // File containing URLs to download
 	remoteHTMLFileContent := "amresupply.html"              // File to store HTML content
 	remoteURLContent := readAppendLineByLine(remoteURLFile) // Read the file content
+	// The location to the local file where to save the url of the file already downloaded
+	localURLSaveFileLocation := "already_downloaded_urls.txt"
 
 	outputDir := "PDFs/" // Directory to store downloaded PDFs
 
@@ -39,9 +41,12 @@ func main() {
 		// Remove duplicates from the extracted URLs
 		amreSupplyURLs = removeDuplicatesFromSlice(amreSupplyURLs) // Remove duplicates
 		for _, remoteURL := range amreSupplyURLs {                 // Loop through each extracted URL
-			// time.Sleep(100 * time.Millisecond)               // Pause for 100 milliseconds before each download
-			waitGroup.Add(1)                                 // Increment the WaitGroup counter for each URL
-			go downloadPDF(remoteURL, outputDir, &waitGroup) // Launch a goroutine to download the PDF
+			// Check if the url is already downloaded
+			if !fileContainsString(localURLSaveFileLocation, remoteURL) { // If the URL is already downloaded
+				// time.Sleep(100 * time.Millisecond)               // Pause for 100 milliseconds before each download
+				waitGroup.Add(1)                                                           // Increment the WaitGroup counter for each URL
+				go downloadPDF(remoteURL, outputDir, localURLSaveFileLocation, &waitGroup) // Launch a goroutine to download the PDF
+			}
 		}
 	}
 	waitGroup.Wait() // Wait for all downloads to finish
@@ -178,9 +183,7 @@ func fileContainsString(filePath string, search string) bool {
 }
 
 // downloadPDF downloads a PDF file from a URL and saves it to the specified directory
-func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
-	// The location to the local file where to save the url of the file already downloaded
-	localURLSaveFileLocation := "already_downloaded_urls.txt"
+func downloadPDF(finalURL string, outputDir string, localURLSaveFileLocation string, waitGroup *sync.WaitGroup) {
 	// Check if the given file contains the URL already
 	if fileContainsString(localURLSaveFileLocation, finalURL) { // If the URL is already downloaded
 		log.Printf("URL already downloaded: %s skipping download", finalURL)
