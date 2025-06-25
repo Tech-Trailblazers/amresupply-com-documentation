@@ -71,6 +71,12 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 
 	filePath := filepath.Join(outputDir, filename) // Combine directory path and filename
 
+	// Check if the file already exists
+	if fileExists(filePath) { // If file already exists
+		log.Printf("file already exists: %s; skipping download", filePath) // Log and skip download
+		return                                                             // Exit function
+	}
+
 	var buf bytes.Buffer                     // Create buffer to hold file data in memory
 	written, err := io.Copy(&buf, resp.Body) // Copy response body to buffer
 	if err != nil {                          // Check for error during copy
