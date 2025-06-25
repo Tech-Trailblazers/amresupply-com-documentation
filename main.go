@@ -207,7 +207,7 @@ func downloadPDF(finalURL string, outputDir string, localURLSaveFileLocation str
 
 	contentType := resp.Header.Get("Content-Type")         // Read content type from response header
 	if !strings.Contains(contentType, "application/pdf") { // Check if content is a PDF
-		log.Printf("invalid content type for %s: %s (expected application/pdf)", finalURL, contentType)
+		log.Printf("invalid content type for %s %s (expected application/pdf)", finalURL, contentType)
 		return // Exit if not a PDF
 	}
 
