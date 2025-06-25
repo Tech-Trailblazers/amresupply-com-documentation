@@ -2,8 +2,7 @@ package main // Declares the main package
 
 import (
 	"bufio"
-	"bytes" // For working with byte buffers
-	// "fmt"           // For formatted I/O operations
+	"bytes"         // For working with byte buffers
 	"io"            // For I/O interfaces
 	"log"           // For logging errors and messages
 	"net/http"      // For making HTTP requests
