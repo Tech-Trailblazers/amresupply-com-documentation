@@ -1,17 +1,18 @@
 package main // Declares the main package
 
 import (
-	"bufio"
+	"bufio"         // For reading files line by line
 	"bytes"         // For working with byte buffers
 	"io"            // For I/O interfaces
 	"log"           // For logging errors and messages
 	"net/http"      // For making HTTP requests
 	"os"            // For file and directory operations
 	"path/filepath" // For manipulating file path strings
-	"regexp"
-	"strings" // For working with string manipulation
-	"sync"    // For concurrency control using WaitGroup
-	"time"    // For handling timing and delays
+	"regexp"        // For regular expression matching
+	// "slices"        // For working with slices (arrays)
+	"strings"       // For working with string manipulation
+	"sync"          // For concurrency control using WaitGroup
+	"time"          // For handling timing and delays
 )
 
 func main() {
@@ -26,6 +27,9 @@ func main() {
 	}
 
 	var waitGroup sync.WaitGroup // Create a WaitGroup to manage concurrency
+
+	// Reverse the slice.
+	// slices.Reverse(remoteURLContent) // Reverse the order of URLs in the slice
 
 	for _, urls := range remoteURLContent { // Loop from 0 to loopStop
 		// Get the data from the URL and append it to the remoteHTMLFileContent
