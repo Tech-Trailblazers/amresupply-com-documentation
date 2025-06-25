@@ -161,7 +161,7 @@ func downloadPDF(finalURL string, outputDir string, waitGroup *sync.WaitGroup) {
 	// Check if the URL has already been downloaded
 	for _, url := range alreadyDownloadedURLs {
 		if url == finalURL { // If the URL is already in the list
-			log.Printf("URL already downloaded: %s; skipping download", finalURL) // Log that the URL is already downloaded
+			log.Printf("URL already downloaded: %s skipping download", finalURL) // Log that the URL is already downloaded
 			return                                                                // Exit the function to avoid re-downloading
 		}
 	}
